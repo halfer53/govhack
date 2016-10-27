@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Crime NZ</title>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+      }
+      /* The Modal (background) */
+      .modal {
+          display: none; /* Hidden by default */
+          position: fixed; /* Stay in place */
+          z-index: 1; /* Sit on top */
+          left: 0;
+          top: 0;
+          width: 500px; /* Full width */
+          height: 500px; /* Full height */
+          overflow: auto; /* Enable scroll if needed */
+          background-color: rgb(0,0,0); /* Fallback color */
+          background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+          margin:5%,auto;
+      }
+
+      /* Modal Content/Box */
+      .modal-content {
+          background-color: #fefefe;
+          margin: 5% auto; /* 15% from the top and centered */
+          padding: 20px;
+          border: 1px solid #888;
+          width: 80%; /* Could be more or less, depending on screen size */
+      }
+
+      /* The Close Button */
+      .close {
+          color: #aaa;
+          float: right;
+          font-size: 28px;
+          font-weight: bold;
+      }
+
+      .close:hover,
+      .close:focus {
+          color: black;
+          text-decoration: none;
+          cursor: pointer;
+      }
+      #time_slider{
+        position:fixed;
+        top:20px;
+        right:100px;
+      }
+    </style>
+    <script   src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="myModal" class="modal">
+
+      <!-- Modal content -->
+      <div class="modal-content">
+        <span class="close">x</span>
+        <canvas id="myChart" width="400" height="400"></canvas>
+      </div>
+
+    </div>
+      <div class="btn-group" id="time_slider">
+        <button type="button" class="btn btn-primary yearbtn" onclick="btn_disable(this,0)">2010</button>
+        <button type="button" class="btn btn-primary yearbtn" onclick="btn_disable(this,1)">2011</button>
+        <button type="button" class="btn btn-primary yearbtn" onclick="btn_disable(this,2)">2012</button>
+        <button type="button" class="btn btn-primary yearbtn" onclick="btn_disable(this,3)">2013</button>
+        <button type="button" class="btn btn-primary yearbtn" onclick="btn_disable(this,4)">2014</button>
+      </div>
+   
+    <script>
+      var polygon_layers = [];
+      var map;
+      var area_crime_y =[
+  {"name":"Far_North","crime_records":[1071.9,1073.3,1051.8,1045.8,1045.8]},
+  {"name":"Whangarei","crime_records":[959.1,947.3,919.4,1042.4,1042.4]},
+  {"name":"Waitemata","crime_records":[566.5,570.6,639.5,664.8,720.1]},
+  {"name":"Countries_Manukau","crime_records":[791.8,825.6,885.6,996.5,1061.2]},
+  {"name":"Waikato","crime_records":[907.5,897.1,1027.4,1041.8,0]},
+  {"name":"Hamilton_City","crime_records":[1077.8,1076.1,1241.2,1288.2,0]},
+  {"name":"Bay_of_Plenty","crime_records":[886.5,1004.5,1039.4,1142.5,1142.5]},
+  {"name":"Rotorua","crime_records":[1175,1335.5,1448.6,1499,1499]},
+  {"name":"Taupo","crime_records":[944.9,1069.3,1158.7,1252.6,1252.6]},
+  {"name":"Manawatu_Whanganui","crime_records":[857.9,834,878.6,920.3,1003.8]},
+  {"name":"Taranaki","crime_records":[631.6,667.3,552.9,704.5,740.1]},
+  {"name":"Wellington","crime_records":[771,727.3,858.3,925.6,969.6]},
+  {"name":"Wellington_City","crime_records":[720.7,746.9,892.8,901.6,969.2]},
+  {"name":"Tasman","crime_records":[784.1,819,949.1,948.1,1044.1]},
+  {"name":"Canterbury","crime_records":[668,724.5,733.5,814.5,965.1]},
+  {"name":"Christchurch","crime_records":[699.2,2526.9,2212.1,2679.6,3482.2]},
+  {"name":"Southland","crime_records":[690,725.4,786.2,868.2,974.6]},
+  {"name":"Otago","crime_records":[601.5,652.1,700,831.4,908.9]},
+  {"name":"Nelson_Bays","crime_records":[781.5,811.3,862.2,888.3,943.9]},
+  {"name":"Auckland","crime_records":[935.2,991.5,1098.5,1265,1184.8]},
+  {"name":"West_Coast","crime_records":[782,809,807.6,894,904.1]},
+  {"name":"Marlborough","crime_records":[790.8,817.9,959.8,1083.4,1138.4]},
+  {"name":"Northland","crime_records":[913.4,961.5,969.2,975.6,1095.1]},
+  {"name":"EasternDistrict","crime_records":[1085.3,1166.7,1128.1,1242,1270.5]},
+  {"name":"Gisborne","crime_records":[1085.3,1166.7,1128.1,1242,1270.5]}
+];
+
+      //crime data first layer indicates the year
+      //second layer indicates different cities
+
+      //list of objects containing name of region and percent of crime level
+      
+      function initMap() {
+
+        map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 6,
+          center: {lat: -41.500083, lng: 172.8344077}
+        });
+        
+        $.getJSON( "http://150.242.42.207/crime_records4.json", function(data) {
+
+          localStorage.setItem('crimedata', JSON.stringify(data));
+          
+          time_change(4);
+
+
+        });
+      }
+      function btn_disable(btn,ele){
+        time_change(ele);
+        btn.disabled = true;
+      }
+      function time_change(index){
+
+        $('.yearbtn').each(function () {
+              this.disabled = false;
+        });
+
+        var retrievedObject = localStorage.getItem('crimedata');
+        var crimes = JSON.parse(retrievedObject);
+
+        for (var i = 0; i < polygon_layers.length; i++) {
+          polygon_layers[i].setMap(null);
+        }
+
+        for (var i = 0; i < crimes[index].length; i++) {
+            var layer = new google.maps.Data();
+
+            var colorlayer = heatMapColorforValue(crimes[index][i].crime_record);
+            layer.setStyle({
+              strokeColor: colorlayer,
+              strokeWeight: 1,
+              fillColor: colorlayer,
+             });
+            layer.set('cityname', crimes[index][i].name)
+
+            google.maps.event.addListener(layer,"click",function(){ 
+              var modal = document.getElementById('myModal');
+              modal.style.display = "block";
+
+              var y_crime_record = [];
+              var cityname = this.get('cityname');
+              var result = $.grep(area_crime_y, function(e){ return e.name == cityname });
+              console.log(result);
+              var date = 2010;
+              for (var i = 0; i < crimes.length; i++) {
+                date = 2010 + i;
+                y_crime_record.push({x: date, y: result[0].crime_records[i]})
+              }
+
+              var ctx = document.getElementById("myChart");
+              
+              var scatterChart = new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                      datasets: [{
+                          label: this.get('cityname'),
+                          data: y_crime_record
+                      }]
+                  },
+                  options: {
+                      scales: {
+                          xAxes: [{
+                              type: 'linear',
+                              position: 'bottom'
+                          }]
+                      }
+                  }
+              });
+            }); 
+
+            layer.loadGeoJson('http://150.242.42.207/geojson/'+crimes[4][i].name+'.json');
+            layer.setMap(map);
+            polygon_layers.push(layer);
+        }
+      }
+
+      function area(name,crime_record){
+        var _name = name;
+        var _crime_record = crime_record;
+        this.getCrime_record = function(){
+          return _crime_record;
+        }
+        this.getName = function(){
+          return _name;
+        }
+      }
+
+      function heatMapColorforValue(value){
+        var h = (1.0 - value) * 240
+        return "hsl(" + h + ", 100%, 50%)";
+      }
+      // Get the modal
+       var modal = document.getElementById('myModal');
+
+      // Get the button that opens the modal
+      var btn = document.getElementById("myBtn");
+
+      // Get the <span> element that closes the modal
+      var span = document.getElementsByClassName("close")[0];
+
+      // When the user clicks on <span> (x), close the modal
+      span.onclick = function() {
+          modal.style.display = "none";
+      }
+
+      // When the user clicks anywhere outside of the modal, close it
+      window.onclick = function(event) {
+          if (event.target == modal) {
+              modal.style.display = "none";
+          }
+      }
+      
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAMCC4YdelDN2baFMvSQOWEGShubLCX_is&callback=initMap">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.2.1/Chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.2.1/Chart.bundle.min.js"></script>
+
+  </body>
+</html>
